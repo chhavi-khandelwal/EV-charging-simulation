@@ -1,37 +1,39 @@
-const CHARGEPOINTS = 20;
-const POWER_KW = 11;
-const INTERVALS = 365 * 24 * 4; // 35040 intervals
-const ENERGY_PER_KM = 0.18;
-const INTERVAL_HOURS = 0.25; //15 minutes in hrs
+// === CONFIGURATION CONSTANTS ===
+const CHARGEPOINTS = 20;              // Total number of chargepoints
+const POWER_KW = 11;                  // Power rating per chargepoint in kilowatts
+const INTERVALS = 365 * 24 * 4;       // 15-minute intervals in a year (365 days × 24 hrs × 4 intervals per hour)
+const ENERGY_PER_KM = 0.18;           // Energy required to drive 1 km, in kWh
+const INTERVAL_HOURS = 0.25;          // Each simulation interval is 15 minutes = 0.25 hours
 
-// T1: Hourly arrival probabilities (%)
+// === T1: Arrival probabilities by hour (in %) ===
 const arrivalProbabilities = [
-  0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94,
-  2.83, 2.83, 5.66, 5.66, 5.66, 7.55, 7.55, 7.55,
-  10.38, 10.38, 10.38, 4.72, 4.72, 4.72, 0.94, 0.94
+  0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94, 0.94,   // Midnight to 8am (low arrivals)
+  2.83, 2.83, 5.66, 5.66, 5.66, 7.55, 7.55, 7.55,   // Work start hours to late afternoon
+  10.38, 10.38, 10.38, 4.72, 4.72, 4.72, 0.94, 0.94 // Evening and night taper off
 ];
 
-// T2: Cumulative probability distribution for charging needs
+// === T2: Cumulative distribution of EV charging needs (in km) ===
+// These represent how far an EV wants to charge. The cumulative threshold ensures 
+// a probabilistic mapping from [0, 100] to different charge distances.
 const chargingDistribution = [
-	{ threshold: 34.31, km: 0 },    // 34.31%
-	{ threshold: 39.21, km: 5 },    // 34.31 + 4.90
-	{ threshold: 49.01, km: 10 },   // +9.80
-	{ threshold: 60.77, km: 20 },   // +11.76
-	{ threshold: 69.59, km: 30 },   // +8.82
-	{ threshold: 81.35, km: 50 },   // +11.76
-	{ threshold: 92.13, km: 100 },  // +10.78
-	{ threshold: 97.03, km: 200 },  // +4.90
-	{ threshold: 99.97, km: 300 }, 
+  { threshold: 34.31, km: 0 },
+  { threshold: 39.21, km: 5 },
+  { threshold: 49.01, km: 10 },
+  { threshold: 60.77, km: 20 },
+  { threshold: 69.59, km: 30 },
+  { threshold: 81.35, km: 50 },
+  { threshold: 92.13, km: 100 },
+  { threshold: 97.03, km: 200 },
+  { threshold: 99.97, km: 300 }
 ];
 
-// you're on day 2 and it's the 5th interval of that day (i.e., interval 101), this would return 101 % 96 = 5.
-// Groups 4 intervals together 
+// Returns the hourly probability (0.0 - 1.0) of an EV arriving at this interval
 function getArrivalProbability(interval) {
-  const hour = Math.floor((interval % 96) / 4);
+  const hour = Math.floor((interval % 96) / 4); // 96 intervals per day → 4 intervals per hour
   return arrivalProbabilities[hour] / 100;
 }
 
-// Translates random chance into a realistic charging need using T2.
+// Translates a random value to a realistic charging need using the cumulative distribution
 function getChargingNeedKm() {
   const rand = Math.random() * 100;
   for (let i = 0; i < chargingDistribution.length; i++) {
@@ -39,68 +41,88 @@ function getChargingNeedKm() {
       return chargingDistribution[i].km;
     }
   }
-  return 0; 
+  return 0;
 }
 
+// === ChargePoint logic ===
 class ChargePoint {
   constructor() {
-    this.busyUntil = -1;
+    this.busyUntil = -1; // Indicates when this chargepoint becomes free again
   }
 
   isBusy(interval) {
     return interval < this.busyUntil;
   }
 
-  tryStartCharging(interval, probability) {
-
+  // Attempts to start charging if the chargepoint is free and an EV has arrived
+  tryStartCharging(interval, force = 1) {
     if (this.isBusy(interval)) return 0;
 
-	//without this, Then every chargepoint would start charging whenever it's free, regardless of whether an EV actually arrives 
-    //If probability = 0.0094, So on average, only 0.94% of the time, this condition will be true, and the chargepoint will attempt to start charging.
-	if (Math.random() < probability) {
-	// Randomly selects how many kilometers of range the EV wants to charge using T2 (charging need distribution).
-      const km = getChargingNeedKm();
-	//   If the EV just parks but doesn't need charging (e.g. km = 0), nothing is done.
-      if (km === 0) return 0;
+    // force = 1 means the EV has already "decided" to charge here
+    if (Math.random() < force) {
+      const km = getChargingNeedKm(); // How far the EV wants to charge
 
-      const energyKWh = km * ENERGY_PER_KM;
-	//   Calculates how long (in hours) it will take to charge that much energy, based on the charger’s power (11 kW).
-      const durationHrs = energyKWh / POWER_KW;
-      const durationTicks = Math.ceil(durationHrs / INTERVAL_HOURS); //multiply by 4
+      if (km === 0) return 0; // Some EVs may just park but not charge
 
-      this.busyUntil = interval + durationTicks;
-      return energyKWh;
+      const energyKWh = km * ENERGY_PER_KM; // Total energy needed
+      const durationHrs = energyKWh / POWER_KW; // Charging time in hours = energy ÷ power
+      const durationTicks = Math.ceil(durationHrs / INTERVAL_HOURS); // Convert hours to 15-min intervals
+
+      this.busyUntil = interval + durationTicks; // Mark chargepoint as busy for that duration
+      return energyKWh; // Energy charged this session
     }
-	// If no EV arrives,
-    return 0;
+
+    return 0; // No charging initiated
   }
 }
 
+// === Utility: Shuffle an array (Fisher-Yates algorithm) ===
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+// === Utility: Rounds a decimal up with a probability matching its fractional part ===
+// e.g., probabilisticRound(2.7) will return 3 with 70% probability, 2 with 30%
+function probabilisticRound(x) {
+  const floor = Math.floor(x);
+  return Math.random() < (x - floor) ? floor + 1 : floor;
+}
+
+// === Main Simulation Function ===
 function simulate() {
   const chargepoints = Array.from({ length: CHARGEPOINTS }, () => new ChargePoint());
 
-  let totalEnergy = 0;
-  let maxActualPower = 0;
+  let totalEnergy = 0;       // Total energy consumed by EVs over the year
+  let maxActualPower = 0;    // Max simultaneous power draw observed
 
   for (let interval = 0; interval < INTERVALS; interval++) {
-    const probability = getArrivalProbability(interval);
-    let activeCount = 0;
+    const probability = getArrivalProbability(interval); // Arrival chance for this hour
+    const arrivals = probabilisticRound(CHARGEPOINTS * probability * INTERVAL_HOURS); 
+    // Expected number of EV arrivals in this 15-minute window
 
-    for (const cp of chargepoints) {
-      const energy = cp.tryStartCharging(interval, probability)/CHARGEPOINTS;
+    const freeChargepoints = chargepoints.filter(cp => !cp.isBusy(interval));
+    const selected = shuffle(freeChargepoints).slice(0, arrivals); 
+    // Randomly assign EVs to available chargepoints (no queuing logic)
+
+    for (const cp of selected) {
+      const energy = cp.tryStartCharging(interval, 1); // Force charging attempt
       totalEnergy += energy;
-      if (cp.isBusy(interval)) activeCount++;
     }
 
+    // Count active chargepoints for concurrency tracking
+    const activeCount = chargepoints.filter(cp => cp.isBusy(interval)).length;
     const currentPower = activeCount * POWER_KW;
-    if (currentPower > maxActualPower) {
-      maxActualPower = currentPower;
-    }
+    maxActualPower = Math.max(maxActualPower, currentPower);
   }
 
   const theoreticalMax = CHARGEPOINTS * POWER_KW;
   const concurrencyFactor = maxActualPower / theoreticalMax;
 
+  // === Final Report ===
   console.log("=== Simulation Results ===");
   console.log("Total energy consumed (kWh):", totalEnergy.toFixed(2));
   console.log("Theoretical max power demand (kW):", theoreticalMax);
