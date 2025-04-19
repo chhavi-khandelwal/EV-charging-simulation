@@ -1,0 +1,12 @@
+{
+	"name": "simulate",
+	"version": "1.0.0",
+	"description": "Simulate",
+	"main": "simulate.js",
+	"scripts": {
+		"start": "node simulate.js"
+	},
+	"author": "",
+	"license": "ISC",
+	"dependencies": {}
+}

@@ -1,0 +1,28 @@
+// data.ts
+
+export const dummyEventDataExemplaryDay = [
+	{ hour: '00:00', count: 1 },
+	{ hour: '01:00', count: 0 },
+	{ hour: '02:00', count: 2 },
+	{ hour: '03:00', count: 1 },
+	{ hour: '04:00', count: 0 },
+	{ hour: '05:00', count: 1 },
+	{ hour: '06:00', count: 3 },
+	{ hour: '07:00', count: 4 },
+	{ hour: '08:00', count: 5 },
+	{ hour: '09:00', count: 6 },
+	{ hour: '10:00', count: 7 },
+	{ hour: '11:00', count: 5 },
+	{ hour: '12:00', count: 4 },
+	{ hour: '13:00', count: 3 },
+	{ hour: '14:00', count: 4 },
+	{ hour: '15:00', count: 6 },
+	{ hour: '16:00', count: 5 },
+	{ hour: '17:00', count: 4 },
+	{ hour: '18:00', count: 3 },
+	{ hour: '19:00', count: 2 },
+	{ hour: '20:00', count: 1 },
+	{ hour: '21:00', count: 0 },
+	{ hour: '22:00', count: 0 },
+	{ hour: '23:00', count: 1 },
+];

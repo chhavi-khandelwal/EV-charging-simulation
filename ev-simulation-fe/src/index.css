@@ -1,0 +1,50 @@
+:root {
+	font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+	line-height: 100%;
+	font-weight: 400;
+	color-scheme: light dark;
+	font-synthesis: none;
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	padding: 0;
+}
+
+.select-arrow {
+	background-image: url("data:image/svg+xml,%3Csvg fill='gray' viewBox='0 0 24 24' width='24' height='24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+	background-repeat: no-repeat;
+	background-position: right 0.75rem center;
+	background-size: 1.25rem 1.25rem;
+	appearance: none;
+}
+
+.loader {
+	border-width: 2px;
+	border-style: solid;
+	border-color: white;
+	border-top-color: transparent;
+	border-radius: 9999px;
+	width: 20px;
+	height: 20px;
+	animation: spin 0.5s linear infinite;
+}
+
+@keyframes spin {
+	0% {
+		transform: rotate(0deg);
+	}
+	100% {
+		transform: rotate(360deg);
+	}
+}
+
+@import 'tailwindcss';
